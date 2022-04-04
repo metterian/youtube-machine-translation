@@ -83,45 +83,27 @@ divs = soup.find_all(
 )
 video_ids = [get_video_id_from_url(div.get("href")) for div in divs]
 
-"""
-Subtitle Samples
->>> [transcript.translate('en').fetch() for transcript in transcript_list]
-[
-    [
-        {
-            'text': "Shouldn't it be a bit more violent if it's a group of death\n?!",
-            'start': 0.48,
-            'duration': 2.88
-        },
-        {
-            'text': '(Gay)', 'start': 3.38, 'duration': 1.52
-        }
-    ]
-]
-
->>> [transcript.fetch() for transcript in transcript_list]
-[[{'text': '죽음의 조라면 좀 더 \n폭력을 써야되는 거 아냐?!', 'start': 0.48, 'duration': 2.88},
-  {'text': '(개어이)', 'start': 3.38, 'duration': 1.52}]]
-"""
-
 
 # %%
-video_id = video_ids[40]
-transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+video_ids = video_ids[40:42]
+lt = lambda x: YouTubeTranscriptApi.list_transcripts(x)
+datasets = [Subtitle(lt(video_id)) for video_id in video_ids]
+
 # %%
 
 
 @dataclass
 class Subtitle:
-    transcript_list: object
-    video_id: str = None
+    # transcript_list: object
+    video_id: str
     ko: List[dict] = None
     en: List[dict] = None
     ko_translated: List[dict] = None
     en_translated: List[dict] = None
 
     def __post_init__(self):
-        for transcript in transcript_list:
+        self.transcript_list = YouTubeTranscriptApi.list_transcripts(self.video_id)
+        for transcript in self.transcript_list:
             self.video_id = transcript.video_id
             if not transcript.is_generated:
                 if transcript.language_code == "ko":
@@ -139,46 +121,61 @@ class Subtitle:
     ko: {bool(self.ko)}
     en: {bool(self.en)}
     ko_translated: {bool(self.ko_translated)}
-    en_translated: {bool(self.en_translated)}"""
+    en_translated: {bool(self.en_translated)}
+    """
 
     def make_dataframe(self, transcript: List[dict]) -> pd.DataFrame:
-        """make dataframe and preprocessing"""
+        """make Dataframe and preprocessing"""
         df = pd.DataFrame(transcript)
-        df = df.text.str.replace("\n", " ")
+        df.text = df.text.str.replace("\n", " ")
         return df
 
     def to_pandas(self) -> pd.DataFrame:
+        """export subtitle variable to Dataframe
+
+        Returns:
+            pd.DataFrame: kor and eng subtitle are merged as Dataframe
+        """
+        df = pd.DataFrame(
+            columns={"video_id", "ko", "en", "ko_translated", "en_translated"}
+        )
         if self.ko and self.en:
             ko_df = self.make_dataframe(self.ko)
             en_df = self.make_dataframe(self.en)
-            return ko_df.merge(en_df, how="inner", on="start")
+
+            df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
 
         elif self.ko and self.en_translated:
             ko_df = self.make_dataframe(self.ko)
+            ko_df = ko_df.rename(columns={"text": "kor"})
+
             en_df = self.make_dataframe(self.en_translated)
-            return ko_df.merge(en_df, how="inner", on="start")
+            en_df = en_df.rename(columns={"text": "en_translated"})
+
+            df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
 
         elif self.ko_translated and self.en:
             ko_df = self.make_dataframe(self.ko_translated)
+            ko_df = ko_df.rename(columns={"text": "ko_translated"})
+
             en_df = self.make_dataframe(self.en)
-            return ko_df.merge(en_df, how="inner", on="start")
+            en_df = en_df.rename(columns={"text": "eng"})
+
+            df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
         else:
             return None
 
+        df["video_id"] = self.video_id
+        return df
+
+    @property
+    def url(self):
+        return f"https://www.youtube.com/watch?v={self.video_id}"
+
 
 subtitle = Subtitle(video_id)
-# subtitle = Subtitle()
-# for transcript in transcript_list:
-#     subtitle.video_id = transcript.video_id
-#     if not transcript.is_generated:
-#         if transcript.language_code == "ko":
-#             subtitle.ko = transcript.fetch()
-#             subtitle.en_translated = transcript.translate("en").fetch()
-#         if transcript.language_code == "en" or transcript.language_code == "en-US":
-#             subtitle.en = transcript.fetch()
-#             subtitle.ko_translated = transcript.translate("ko").fetch()
 
-subtitle
+subtitle.to_pandas().head(50)
 # %%
 ko, en = [transcript.fetch() for transcript in transcript_list]  #%%
 ko_df = pd.DataFrame(ko)
