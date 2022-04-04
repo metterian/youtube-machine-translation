@@ -1,5 +1,6 @@
 #%%
 # Get transcript from YouTube
+import multiprocessing
 import sys
 from dataclasses import asdict, dataclass, field
 from glob import glob
@@ -8,7 +9,9 @@ from pathlib import Path
 from pprint import pprint
 from typing import List
 
+import numpy as np
 import pandas as pd
+import parmap
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -71,13 +74,14 @@ def get_url_from_video_id(video_id: str) -> str:
 # %%
 # get html paths from folder
 html_files = glob("./html/*.html")
-# %%
+html_keywords = [Path(file).stem for file in html_files]
 html_file = list(html_files)[3]
 
 # %%
 with open(html_file) as fp:
     soup = BeautifulSoup(fp, "lxml", from_encoding="utf-8")
 # %%
+# TODO add filter shorts video
 divs = soup.find_all(
     "a", {"class": "yt-simple-endpoint style-scope ytd-video-renderer"}
 )
@@ -85,24 +89,24 @@ video_ids = [get_video_id_from_url(div.get("href")) for div in divs]
 
 
 # %%
-video_ids = video_ids[40:42]
-lt = lambda x: YouTubeTranscriptApi.list_transcripts(x)
-datasets = [Subtitle(lt(video_id)) for video_id in video_ids]
 
 # %%
 
 
 @dataclass
 class Subtitle:
-    # transcript_list: object
     video_id: str
+    keyword: str
     ko: List[dict] = None
     en: List[dict] = None
     ko_translated: List[dict] = None
     en_translated: List[dict] = None
 
     def __post_init__(self):
-        self.transcript_list = YouTubeTranscriptApi.list_transcripts(self.video_id)
+        try:
+            self.transcript_list = YouTubeTranscriptApi.list_transcripts(self.video_id)
+        except:
+            return None
         for transcript in self.transcript_list:
             self.video_id = transcript.video_id
             if not transcript.is_generated:
@@ -141,9 +145,10 @@ class Subtitle:
         )
         if self.ko and self.en:
             ko_df = self.make_dataframe(self.ko)
-            en_df = self.make_dataframe(self.en)
+            ko_df = ko_df.rename(columns={"text": "kor"})
 
-            df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
+            en_df = self.make_dataframe(self.en)
+            en_df = en_df.rename(columns={"text": "eng"})
 
         elif self.ko and self.en_translated:
             ko_df = self.make_dataframe(self.ko)
@@ -152,8 +157,6 @@ class Subtitle:
             en_df = self.make_dataframe(self.en_translated)
             en_df = en_df.rename(columns={"text": "en_translated"})
 
-            df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
-
         elif self.ko_translated and self.en:
             ko_df = self.make_dataframe(self.ko_translated)
             ko_df = ko_df.rename(columns={"text": "ko_translated"})
@@ -161,36 +164,27 @@ class Subtitle:
             en_df = self.make_dataframe(self.en)
             en_df = en_df.rename(columns={"text": "eng"})
 
-            df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
         else:
             return None
 
+        df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
         df["video_id"] = self.video_id
+        df["href"] = self.url
+        df["keyword"] = self.keyword
         return df
 
     @property
-    def url(self):
+    def url(self) -> str:
         return f"https://www.youtube.com/watch?v={self.video_id}"
 
 
-subtitle = Subtitle(video_id)
+#%%
+# datasets = [Subtitle(video_id) for video_id in tqdm(video_ids)]
 
-subtitle.to_pandas().head(50)
 # %%
-ko, en = [transcript.fetch() for transcript in transcript_list]  #%%
-ko_df = pd.DataFrame(ko)
-ko_df.text = ko_df.text.str.replace("\n", " ")
-en_df = pd.DataFrame(en)
-en_df.text = en_df.text.str.replace("\n", "")
-pd.concat([ko_df, en_df], axis=1)
-# %%
-kr_translation = [
-    transcript.translate("en").fetch()
-    for transcript in transcript_list
-    if transcript.language_code == "ko"
-]
-kr_tr_df = pd.DataFrame(kr_translation[0])
-kr_tr_df.text = kr_tr_df.text.str.replace("\n", " ")
-# %%
-ko_df.merge(kr_tr_df, how="inner", on="start").tail(50)
+num_cores = multiprocessing.cpu_count()
+
+splitted_dataset = np.array_split(video_ids, num_cores)
+splitted_dataset = [x.tolist() for x in splitted_dataset]
+dataset = parmap.map(Subtitle, splitted_dataset, pm_pbar=True, pm_processes=6)
 # %%
