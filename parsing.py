@@ -2,6 +2,7 @@
 # Get transcript from YouTube
 import multiprocessing
 import sys
+from ast import keyword
 from dataclasses import asdict, dataclass, field
 from glob import glob
 from operator import index
@@ -19,19 +20,6 @@ from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisable
 
 print = pprint
 # %%
-
-
-@dataclass(unsafe_hash=True)
-class Subtitle:
-    """Define subtitle data structure"""
-
-    transcript_list = object
-
-    @property
-    def url(self) -> str:
-        self.video_id = [transcript.video_id for transcript in transcript_list][0]
-        return f"https://www.youtube.com/watch?v={self.video_id}"
-
 
 #%%
 def get_url_from_hashtag(hashtag: str) -> str:
@@ -90,13 +78,11 @@ video_ids = [get_video_id_from_url(div.get("href")) for div in divs]
 
 # %%
 
-# %%
-
 
 @dataclass
 class Subtitle:
     video_id: str
-    keyword: str
+    # keyword: str
     ko: List[dict] = None
     en: List[dict] = None
     ko_translated: List[dict] = None
@@ -183,8 +169,14 @@ class Subtitle:
 
 # %%
 num_cores = multiprocessing.cpu_count()
-
-splitted_dataset = np.array_split(video_ids, num_cores)
+keyword = "스포츠"
+splitted_dataset = np.array_split(video_ids, 40)
 splitted_dataset = [x.tolist() for x in splitted_dataset]
-dataset = parmap.map(Subtitle, splitted_dataset, pm_pbar=True, pm_processes=6)
+
+# %%
+
+dataset = parmap.map(Subtitle, video_ids, pm_pbar=True, pm_processes=80)
+#%%
+
+
 # %%
