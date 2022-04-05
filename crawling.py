@@ -115,6 +115,9 @@ class Crawler:
                 self.scroll_down_to_bottom()
                 self.download_and_save_html(keyword)
 
+    def get_category(self, url: str):
+        """Get video's category"""
+
 
 if __name__ == "__main__":
     bot = Crawler(keywords)
