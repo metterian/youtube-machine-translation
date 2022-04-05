@@ -2,8 +2,7 @@
 import glob
 import json
 import time
-from lib2to3.pgen2 import driver
-from typing import List
+from typing import List, Optional
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -47,14 +46,14 @@ keywords = [
 
 
 class Crawler:
-    def __init__(self, keywords: List[str], headless=False) -> None:
+    def __init__(self, headless: bool = False) -> None:
         self.options = Options()
         if headless:
             self.options.add_argument("--headless")
         self.driver = webdriver.Chrome(
             ChromeDriverManager().install(), chrome_options=self.options
         )
-        self.keywords = keywords
+        # self.keywords = keywords
 
     def quit(self):
         """quit driver"""
@@ -110,9 +109,13 @@ class Crawler:
         with open(f"./html/{keyword}.html", "w+", encoding="utf-8") as fp:
             fp.write(self.html)
 
-    def download(self) -> None:
-        """main function to download html page source"""
-        for keyword in tqdm(self.keywords):
+    def download(self, keywords: List[str]) -> None:
+        """main function to download html page source using keywords list
+
+        Args:
+            keywords (List[str]): keywords list
+        """
+        for keyword in tqdm(keywords):
             if not glob.glob(f"./html/{keyword}.html"):
                 self.search(keyword)
                 self.scroll_down_to_bottom()
