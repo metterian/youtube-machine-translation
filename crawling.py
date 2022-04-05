@@ -1,8 +1,11 @@
 #%%
 import glob
+import json
 import time
+from lib2to3.pgen2 import driver
 from typing import List
 
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from tqdm import tqdm
@@ -115,11 +118,33 @@ class Crawler:
                 self.scroll_down_to_bottom()
                 self.download_and_save_html(keyword)
 
+    @property
+    def video_title(self) -> str:
+        return self.video_info["name"]
+
+    @property
+    def video_date(self) -> str:
+        return self.video_info["uploadDate"]
+
+    @property
+    def video_genre(self) -> str:
+        return self.video_info["genre"]
+
+    def get_video_info(self, url: str) -> dict:
+        """Get video's information"""
+        self.driver.get(url)
+        page_source = self.driver.page_source
+        self.driver.quit()
+
+        soup = BeautifulSoup(page_source, "lxml", from_encoding="utf-8")
+
+        script = soup.find("div", {"class": "style-scope ytd-watch-flexy"}).script.text
+        self.video_info = json.loads(script)
+        return self.video_info
+
 
 if __name__ == "__main__":
     bot = Crawler(keywords)
-    bot.download()
+    # bot.download()
+    bot.get_video_category(url="https://www.youtube.com/watch?v=sVjbLPuI6HY")
     bot.quit()
-
-
-# %%
