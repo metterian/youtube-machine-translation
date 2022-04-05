@@ -147,7 +147,7 @@ class Crawler:
 
 
 if __name__ == "__main__":
-    bot = Crawler(keywords)
-    # bot.download()
-    bot.get_video_category(url="https://www.youtube.com/watch?v=sVjbLPuI6HY")
+    bot = Crawler()
+    bot.download(keywords)
+    # bot.get_video_category(url="https://www.youtube.com/watch?v=sVjbLPuI6HY")
     bot.quit()
