@@ -1,6 +1,5 @@
 #%%
 # Get transcript from YouTube
-import multiprocessing
 from dataclasses import asdict, dataclass, field
 from glob import glob
 from operator import index
@@ -169,10 +168,10 @@ class Subtitle:
 
 #%%
 
-dataset = parmap.map(Subtitle, video_ids, pm_pbar=True, pm_processes=80)
+dataset = parmap.map(Subtitle, video_ids, pm_pbar=True, pm_processes=50)
 #%%
 
 datasets = [subtitle.to_pandas() for subtitle in dataset]
 # %%
-pd.concat(datasets, axis=0).to_csv('test.csv', encoding='utf-8-sig', index=False)
+pd.concat(datasets, axis=0).to_csv("test.csv", encoding="utf-8-sig", index=False)
 # %%
