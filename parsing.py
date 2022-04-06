@@ -1,8 +1,6 @@
 #%%
 # Get transcript from YouTube
 import multiprocessing
-import sys
-from ast import keyword
 from dataclasses import asdict, dataclass, field
 from glob import glob
 from operator import index
@@ -10,13 +8,11 @@ from pathlib import Path
 from pprint import pprint
 from typing import List
 
-import numpy as np
 import pandas as pd
 import parmap
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
 print = pprint
 # %%
@@ -82,7 +78,6 @@ video_ids = [get_video_id_from_url(div.get("href")) for div in divs]
 @dataclass
 class Subtitle:
     video_id: str
-    # keyword: str
     ko: List[dict] = None
     en: List[dict] = None
     ko_translated: List[dict] = None
@@ -107,12 +102,12 @@ class Subtitle:
                     self.ko_translated = transcript.translate("ko").fetch()
 
     def __repr__(self) -> str:
-        return f"""video_id: {self.video_id}
-    ko: {bool(self.ko)}
-    en: {bool(self.en)}
-    ko_translated: {bool(self.ko_translated)}
-    en_translated: {bool(self.en_translated)}
-    """
+        info = f"video_id: {self.video_id}"
+        info += f"\nko: {bool(self.ko)}"
+        info += f"\nen: {bool(self.en)}"
+        info += f"\nko_translated: {bool(self.ko_translated)}"
+        info += f"\nen_translated: {bool(self.en_translated)}"
+        return info
 
     def make_dataframe(self, transcript: List[dict]) -> pd.DataFrame:
         """make Dataframe and preprocessing"""
@@ -126,9 +121,15 @@ class Subtitle:
         Returns:
             pd.DataFrame: kor and eng subtitle are merged as Dataframe
         """
-        df = pd.DataFrame(
-            columns={"video_id", "ko", "en", "ko_translated", "en_translated"}
-        )
+
+        return self.sync_subtitle()
+
+    def sync_subtitle(self) -> pd.DataFrame:
+        """Synchronization is performed based on the start time of subtitles.
+
+        Returns:
+            _type_: _description_
+        """
         if self.ko and self.en:
             ko_df = self.make_dataframe(self.ko)
             ko_df = ko_df.rename(columns={"text": "kor"})
@@ -156,7 +157,7 @@ class Subtitle:
         df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
         df["video_id"] = self.video_id
         df["href"] = self.url
-        df["keyword"] = self.keyword
+
         return df
 
     @property
@@ -165,18 +166,11 @@ class Subtitle:
 
 
 #%%
-# datasets = [Subtitle(video_id) for video_id in tqdm(video_ids)]
-
-# %%
-num_cores = multiprocessing.cpu_count()
-keyword = "스포츠"
-splitted_dataset = np.array_split(video_ids, 40)
-splitted_dataset = [x.tolist() for x in splitted_dataset]
-
-# %%
 
 dataset = parmap.map(Subtitle, video_ids, pm_pbar=True, pm_processes=80)
 #%%
 
-
+datasets = [subtitle.to_pandas() for subtitle in dataset]
+# %%
+pd.concat(datasets, axis=0).to_csv('test.csv', encoding='utf-8-sig', index=False)
 # %%
