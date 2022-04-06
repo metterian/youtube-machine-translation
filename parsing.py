@@ -1,5 +1,8 @@
 #%%
 # Get transcript from YouTube
+import csv
+import itertools
+from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from glob import glob
 from operator import index
@@ -14,7 +17,6 @@ from tqdm import tqdm
 from youtube_transcript_api import YouTubeTranscriptApi
 
 print = pprint
-# %%
 
 #%%
 def get_url_from_hashtag(hashtag: str) -> str:
@@ -55,20 +57,39 @@ def get_url_from_video_id(video_id: str) -> str:
 
 
 # %%
-# get html paths from folder
-html_files = glob("./html/*.html")
-html_keywords = [Path(file).stem for file in html_files]
-html_file = list(html_files)[3]
 
-# %%
-with open(html_file) as fp:
-    soup = BeautifulSoup(fp, "lxml", from_encoding="utf-8")
-# %%
-# TODO add filter shorts video
-divs = soup.find_all(
-    "a", {"class": "yt-simple-endpoint style-scope ytd-video-renderer"}
-)
-video_ids = [get_video_id_from_url(div.get("href")) for div in divs]
+
+def get_video_id_from_html(html_path: str) -> List[str]:
+    """get video id from html file after parsing
+
+    Args:
+        html_path (str): html file path
+
+    Returns:
+        List[str]: video ids in list
+    """
+    with open(html_path) as fp:
+        soup = BeautifulSoup(fp, "lxml", from_encoding="utf-8")
+    # TODO add filter shorts video
+    divs = soup.find_all(
+        "a", {"class": "yt-simple-endpoint style-scope ytd-video-renderer"}
+    )
+    return [get_video_id_from_url(div.get("href")) for div in divs]
+
+
+def get_video_ids() -> List[str]:
+    """ open all html files and get video ids """
+    html_files = glob("./html/*.html")
+    # html_keywords = [Path(file).stem for file in html_files]
+    video_ids = parmap.map(
+        get_video_id_from_html, html_files, pm_pbar=True, pm_processes=80
+    )
+    video_ids = filter_video_id(video_ids)
+    return video_ids
+
+
+def filter_video_id(video_ids: List[str]) -> List[str]:
+    return [video_id for video_id in video_ids if "shorts" not in video_id]
 
 
 # %%
@@ -116,7 +137,7 @@ class Subtitle:
         df.text = df.text.str.replace("\n", " ")
         return df
 
-    def to_pandas(self) -> pd.DataFrame:
+    def to_list(self) -> List[dict]:
         """export subtitle variable to Dataframe
 
         Returns:
@@ -125,53 +146,70 @@ class Subtitle:
 
         return self.sync_subtitle()
 
-    def sync_subtitle(self) -> pd.DataFrame:
+    def sync_subtitle(self) -> dict:
         """Synchronization is performed based on the start time of subtitles.
 
         Returns:
             _type_: _description_
         """
-        if self.ko and self.en:
-            ko_df = self.make_dataframe(self.ko)
-            ko_df = ko_df.rename(columns={"text": "kor"})
+        ko = {subtitle["start"]: subtitle["text"] for subtitle in self.ko}
+        en = {subtitle["start"]: subtitle["text"] for subtitle in self.en}
+        subtitle = [
+            {"video_id": self.video_id, "start": start, "kor": text, "eng": en[start]}
+            for start, text in ko.items()
+        ]
 
-            en_df = self.make_dataframe(self.en)
-            en_df = en_df.rename(columns={"text": "eng"})
+        return subtitle
+        # for dataframe
+        # if self.ko and self.en:
+        #     ko_df = self.make_dataframe(self.ko)
+        #     ko_df = ko_df.rename(columns={"text": "kor"})
 
-        elif self.ko and self.en_translated:
-            ko_df = self.make_dataframe(self.ko)
-            ko_df = ko_df.rename(columns={"text": "kor"})
+        #     en_df = self.make_dataframe(self.en)
+        #     en_df = en_df.rename(columns={"text": "eng"})
 
-            en_df = self.make_dataframe(self.en_translated)
-            en_df = en_df.rename(columns={"text": "en_translated"})
+        # elif self.ko and self.en_translated:
+        #     ko_df = self.make_dataframe(self.ko)
+        #     ko_df = ko_df.rename(columns={"text": "kor"})
 
-        elif self.ko_translated and self.en:
-            ko_df = self.make_dataframe(self.ko_translated)
-            ko_df = ko_df.rename(columns={"text": "ko_translated"})
+        #     en_df = self.make_dataframe(self.en_translated)
+        #     en_df = en_df.rename(columns={"text": "en_translated"})
 
-            en_df = self.make_dataframe(self.en)
-            en_df = en_df.rename(columns={"text": "eng"})
+        # elif self.ko_translated and self.en:
+        #     ko_df = self.make_dataframe(self.ko_translated)
+        #     ko_df = ko_df.rename(columns={"text": "ko_translated"})
 
-        else:
-            return None
+        #     en_df = self.make_dataframe(self.en)
+        #     en_df = en_df.rename(columns={"text": "eng"})
 
-        df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
-        df["video_id"] = self.video_id
-        df["href"] = self.url
+        # else:
+        #     return None
 
-        return df
+        # df = ko_df.merge(en_df, how="outer", on="start", suffixes=("_kor", "_eng"))
+        # df["video_id"] = self.video_id
+        # df["href"] = self.url
+
+        # return df
 
     @property
     def url(self) -> str:
         return f"https://www.youtube.com/watch?v={self.video_id}"
 
 
+subtitle = Subtitle("ob8NZqCLUL8")
 #%%
 
-dataset = parmap.map(Subtitle, video_ids, pm_pbar=True, pm_processes=50)
-#%%
-
-datasets = [subtitle.to_pandas() for subtitle in dataset]
 # %%
-pd.concat(datasets, axis=0).to_csv("test.csv", encoding="utf-8-sig", index=False)
+
+if __name__ == "__main__":
+    video_ids = get_video_ids()
+    video_ids = list(itertools.chain(*video_ids))
+    subtitles = parmap.map(Subtitle, video_ids[:2000], pm_pbar=True, pm_processes=50)
+    subtitles = [Subtitle(video_id) for video_id in tqdm(video_ids[:2000])]
+
+    dataset = [subtitle.to_list() for subtitle in subtitles]
+
+    # datasets = [subtitle.to_pandas() for subtitle in dataset]
+    # pd.concat(datasets, axis=0).to_csv("dataset.csv", encoding="utf-8-sig", index=False)
+
 # %%
