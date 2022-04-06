@@ -84,6 +84,9 @@ class Subtitle:
     en_translated: List[dict] = None
 
     def __post_init__(self):
+        self.get_subtitle_from_api()
+
+    def get_subtitle_from_api(self, translation: bool = False) -> None:
         try:
             self.transcript_list = YouTubeTranscriptApi.list_transcripts(self.video_id)
         except:
@@ -93,13 +96,12 @@ class Subtitle:
             if not transcript.is_generated:
                 if transcript.language_code == "ko":
                     self.ko = transcript.fetch()
-                    self.en_translated = transcript.translate("en").fetch()
-                if (
-                    transcript.language_code == "en"
-                    or transcript.language_code == "en-US"
-                ):
+                    if translation:
+                        self.en_translated = transcript.translate("en").fetch()
+                if transcript.language_code in ["en", "en-US"]:
                     self.en = transcript.fetch()
-                    self.ko_translated = transcript.translate("ko").fetch()
+                    if translation:
+                        self.ko_translated = transcript.translate("ko").fetch()
 
     def __repr__(self) -> str:
         info = f"video_id: {self.video_id}"
