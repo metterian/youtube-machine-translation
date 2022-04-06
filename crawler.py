@@ -40,10 +40,6 @@ keywords = [
 
 #%%
 
-# "종교",
-# "연예",
-# "연애",
-
 
 class Crawler:
     def __init__(self, headless: bool = False) -> None:
@@ -53,7 +49,6 @@ class Crawler:
         self.driver = webdriver.Chrome(
             ChromeDriverManager().install(), chrome_options=self.options
         )
-        # self.keywords = keyword
 
     def quit(self):
         """quit driver"""
