@@ -121,15 +121,9 @@ class Crawler:
                 self.scroll_down_to_bottom()
                 self.download_and_save_html(keyword)
 
-<<<<<<< HEAD:crawling.py
-    def get_category(self, url: str):
-        """Get video's category"""
-
-=======
     @property
     def video_title(self) -> str:
         return self.video_info["name"]
->>>>>>> 9f149a5241ee70c201fb433a81d79b744d641a5f:crawler.py
 
     @property
     def video_date(self) -> str:
