@@ -53,7 +53,7 @@ class Crawler:
         self.driver = webdriver.Chrome(
             ChromeDriverManager().install(), chrome_options=self.options
         )
-        # self.keywords = keywords
+        # self.keywords = keyword
 
     def quit(self):
         """quit driver"""
@@ -148,6 +148,9 @@ class Crawler:
 
 if __name__ == "__main__":
     bot = Crawler()
-    bot.download(keywords)
-    # bot.get_video_category(url="https://www.youtube.com/watch?v=sVjbLPuI6HY")
+    # bot.download(keywords)
+    bot.get_video_info(url="https://www.youtube.com/watch?v=ob8NZqCLUL8")
+    print(bot.video_genre)
     bot.quit()
+
+# %%
