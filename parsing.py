@@ -137,7 +137,7 @@ if __name__ == "__main__":
     n_workers = 100
 
     video_ids = get_video_ids(n_workers=n_workers)
-    video_ids = list(chain(*video_ids))
+    video_ids = set(chain(*video_ids))
     splitted_data = np.array_split(video_ids, 20)
 
     dataset = []
