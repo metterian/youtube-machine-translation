@@ -169,10 +169,8 @@ class Subtitle:
 
 #%%
 
-dataset = parmap.map(Subtitle, video_ids, pm_pbar=True, pm_processes=80)
+dataset = parmap.map(Subtitle, video_ids, pm_pbar=True, pm_processes=10)
 #%%
 
-datasets = [subtitle.to_pandas() for subtitle in dataset]
-# %%
-pd.concat(datasets, axis=0).to_csv('test.csv', encoding='utf-8-sig', index=False)
+
 # %%
