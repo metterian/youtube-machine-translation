@@ -1,9 +1,11 @@
 #%%
 import glob
 import json
+import re
 import time
 from typing import List, Optional
 
+import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -13,29 +15,11 @@ from webdriver_manager.chrome import ChromeDriverManager
 # %%
 # set domain as hash tag
 keywords = [
-    "mukbang",
-    "makeup",
-    "daily makeup",
-    "ps4",
-    "xbox" "배틀그라운드",
-    "오버워치",
-    "포트나이트",
-    "개봉기",
-    "스마트폰",
-    "아이폰",
-    "갤럭시",
-    "애플",
-    "삼성",
-    "맥북",
-    "키즈 자막",
-    "키즈",
+    "메이크업",
+    "데일리 메이크업",
+    "먹방",
+    "뷰티",
     "정치",
-    "정치 자막",
-    "정치 subtitle",
-    "스포츠",
-    "스포츠 자막",
-    "epl",
-    "epl 자막",
 ]
 
 #%%
@@ -47,7 +31,7 @@ class Crawler:
         if headless:
             self.options.add_argument("--headless")
         self.driver = webdriver.Chrome(
-            ChromeDriverManager().install(), chrome_options=self.options
+            ChromeDriverManager().install(), options=self.options
         )
 
     def quit(self):
@@ -116,36 +100,42 @@ class Crawler:
                 self.scroll_down_to_bottom()
                 self.download_and_save_html(keyword)
 
-    @property
-    def video_title(self) -> str:
-        return self.video_info["name"]
-
-    @property
-    def video_date(self) -> str:
-        return self.video_info["uploadDate"]
-
-    @property
-    def video_genre(self) -> str:
-        return self.video_info["genre"]
-
-    def get_video_info(self, url: str) -> dict:
+    def get_video_info(self, url) -> dict:
         """Get video's information"""
         self.driver.get(url)
         page_source = self.driver.page_source
         self.driver.quit()
 
-        soup = BeautifulSoup(page_source, "lxml", from_encoding="utf-8")
+        self.soup = BeautifulSoup(page_source, "lxml", from_encoding="utf-8")
+        self.script = self.soup.find(
+            "script", {"class": "style-scope ytd-player-microformat-renderer"}
+        )
+        self.video_info = json.loads(self.script.text)
 
-        script = soup.find("div", {"class": "style-scope ytd-watch-flexy"}).script.text
-        self.video_info = json.loads(script)
-        return self.video_info
+        title = self.video_info["name"]
+        description = self.video_info["description"]
+        date = self.video_info["uploadDate"]
+        genre = self.video_info["genre"]
+        view_count = self.video_info["interactionCount"]
+        uploader = self.video_info["author"]
+
+        info = {
+            "title": title,
+            "description": description,
+            "date": date,
+            "genre": genre,
+            "view_count": view_count,
+            "uploader": uploader,
+        }
+        return info
 
 
 if __name__ == "__main__":
     bot = Crawler()
     # bot.download(keywords)
-    bot.get_video_info(url="https://www.youtube.com/watch?v=ob8NZqCLUL8")
-    print(bot.video_genre)
-    bot.quit()
+    info = bot.get_video_info("https://www.youtube.com/watch?v=5ktWGfmyG4U")
+    # bot.quit()
+
+# %%
 
 # %%
