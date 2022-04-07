@@ -138,10 +138,10 @@ if __name__ == "__main__":
 
     video_ids = get_video_ids(n_workers=n_workers)
     video_ids = set(chain(*video_ids))
-    splitted_data = np.array_split(video_ids, 20)
+    splitted_data = np.array_split(video_ids, 30)
 
     dataset = []
-    for data in splitted_data[:2]:
+    for data in splitted_data:
         subtitles = parmap.map(get_subtitle, data, pm_pbar=True, pm_processes=n_workers)
 
         subtitles = [subtitle for subtitle in subtitles if subtitle]
