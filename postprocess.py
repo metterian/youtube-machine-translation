@@ -68,6 +68,10 @@ if __name__ == "__main__":
 # %%
 
 # %%
+def preprocessing():
+    df.kor = df.kor.str.replace('\n', ' ')
+    df.eng = df.eng.str.replace('\n', ' ')
+
 def split_dataset():
     dataset_index = np.arange(df.shape[0])
 
@@ -86,9 +90,16 @@ def split_dataset():
 
 
 # %%
+preprocessing()
 train, val, test = split_dataset()
 # %%
-train.to_csv("./data/train.csv", encoding="utf-8-sig", index=False, sep="\t")
-val.to_csv("./data/val.csv", encoding="utf-8-sig", index=False, sep="\t")
-test.to_csv("./data/test.csv", encoding="utf-8-sig", index=False, sep="\t")
+train.kor.to_csv("./data/train_kor.txt", encoding="utf-8-sig", index=False, header=False)
+val.kor.to_csv("./data/val_kor.txt", encoding="utf-8-sig", index=False, header=False)
+test.kor.to_csv("./data/test_kor.txt", encoding="utf-8-sig", index=False, header=False)
+
+train.eng.to_csv("./data/train_eng.txt", encoding="utf-8-sig", index=False, header=False)
+val.eng.to_csv("./data/val_eng.txt", encoding="utf-8-sig", index=False, header=False)
+test.eng.to_csv("./data/test_eng.txt", encoding="utf-8-sig", index=False, header=False)
+# %%
+test.head()
 # %%
