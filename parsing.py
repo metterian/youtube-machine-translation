@@ -10,7 +10,9 @@ import numpy as np
 import pandas as pd
 import parmap
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
 from tqdm import tqdm
+from urllib3.util.retry import Retry
 from youtube_transcript_api import YouTubeTranscriptApi
 
 print = pprint
@@ -39,6 +41,8 @@ def get_url_from_video_id(video_id: str) -> str:
     Returns:
         str: added youtube url
     """
+    if not video_id:
+        print("deg")
     return f"https://www.youtube.com/watch?v={video_id}"
 
 
@@ -57,13 +61,14 @@ def get_video_id_from_html(html_path: str) -> List[str]:
     divs = soup.find_all(
         "a", {"class": "yt-simple-endpoint style-scope ytd-video-renderer"}
     )
-    return [get_video_id_from_url(div.get("href")) for div in divs]
+
+    return [get_video_id_from_url(div["href"]) for div in divs if "href" in div.attrs]
 
 
 def get_video_ids(n_workers: int) -> List[str]:
     """open all html files and get video ids"""
     html_files = glob("./html/*.html")
-    # html_keywords = [Path(file).stem for file in html_files]
+
     video_ids = parmap.map(
         get_video_id_from_html, html_files, pm_pbar=True, pm_processes=n_workers
     )
@@ -83,36 +88,24 @@ def get_subtitle_from_api(video_id: str) -> dict:
     try:
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
     except Exception as e:
-        print(e)
         return None
     video_id = transcript_list.video_id
     transcripts = transcript_list._manually_created_transcripts
 
-    ko, en = None, None
-    if "ko" in transcripts:
-        while not ko:
-            try:
-                ko = transcripts["ko"].fetch()
-            except Exception as e:
-                time.sleep(0.5)
+    if 'ko' not in transcripts or not ('en' in transcripts or 'en-US' in transcripts ):
+        return None
 
-        if "en" in transcripts:
-            while not en:
-                try:
-                    en = transcripts["en"].fetch()
-                except Exception as e:
-                    time.sleep(0.5)
+    ko = transcripts["ko"].fetch()
+    if "en" in transcripts:
+        en = transcripts["en"].fetch()
 
-        elif "en-US" in transcripts:
-            while not en:
-                try:
-                    en = transcripts["en-US"].fetch()
-                except Exception as e:
-                    time.sleep(0.5)
-        else:
-            return None
+    elif "en-US" in transcripts:
+        en = transcripts["en-US"].fetch()
 
-        return {"video_id": video_id, "kor": ko, "eng": en}
+    if None in [ko, en]:
+        return get_subtitle_from_api(video_id)
+
+    return {"video_id": video_id, "kor": ko, "eng": en}
 
 
 def sync_subtitle(subtitle) -> List[dict]:
@@ -150,22 +143,23 @@ def get_subtitle(video_id: List[str]):
         return sync_subtitle(subtitle)
 
 
-#%%
-if __name__ == "__main__":
-    n_workers = 80
+def main():
+    n_workers = 104
 
-    video_ids = get_video_ids(n_workers=80)
+    video_ids = get_video_ids(n_workers=n_workers)
     video_ids = np.unique(list(chain(*video_ids)))
 
-    # splitted_data = np.array_split(video_ids, 40)
-
     subtitles = parmap.map(
-        get_subtitle, video_ids[:1000], pm_pbar=True, pm_processes=n_workers
+        get_subtitle, video_ids, pm_pbar=True, pm_processes=n_workers
     )
 
     subtitles = [subtitle for subtitle in subtitles if subtitle]
     subtitles = list(chain(*subtitles))
     df = pd.DataFrame(subtitles)
-    df.to_csv("dataset2.csv", encoding="utf-8-sig", sep="\t")
+    df.to_csv("dataset.csv", encoding="utf-8-sig", sep="\t", index=False)
 
+
+#%%
+if __name__ == "__main__":
+    main()
 # %%
