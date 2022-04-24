@@ -117,3 +117,13 @@ train.to_csv("./data/train.tsv", encoding="utf-8-sig", index=False, sep="\t")
 val.to_csv("./data/val.tsv", encoding="utf-8-sig", index=False, sep="\t")
 test.to_csv("./data/test.tsv", encoding="utf-8-sig", index=False, sep="\t")
 # %%
+import langid
+
+for idx, row in df[["eng", "kor"]].iterrows():
+    en = row["eng"]
+    ko = row["kor"]
+
+    if not "ko" in langid.classify(ko):
+        print(f"en: {en}, ko : {ko}")
+
+# %%
