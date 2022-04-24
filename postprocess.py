@@ -1,4 +1,5 @@
 #%%
+import string
 import time
 
 import numpy as np
@@ -67,8 +68,32 @@ if __name__ == "__main__":
     main()
 # %%
 
+
+def remove_punctuation(text):
+    if isinstance(text, float):
+        print(text)
+    punctuation = ["-", "[", "]", "(", ")"]
+    punctuationfree = "".join([i for i in text if i not in punctuation])
+    return punctuationfree
+
+
+def remove_newline(text):
+    return text.replace("\n", " ")
+
+
+#%%
+
+
+def remove():
+    df = df.dropna()
+    df.eng = df.eng.apply(remove_punctuation)
+    df.eng = df.eng.apply(remove_newline)
+    df.kor = df.kor.apply(remove_punctuation)
+    df.kor = df.kor.apply(remove_newline)
+
+
 # %%
-def split_dataset():
+def split_dataset(df: pd.DataFrame):
     dataset_index = np.arange(df.shape[0])
 
     train_index, test_index = train_test_split(
@@ -86,9 +111,9 @@ def split_dataset():
 
 
 # %%
-train, val, test = split_dataset()
+train, val, test = split_dataset(df)
 # %%
-train.to_csv("./data/train.csv", encoding="utf-8-sig", index=False, sep="\t")
-val.to_csv("./data/val.csv", encoding="utf-8-sig", index=False, sep="\t")
-test.to_csv("./data/test.csv", encoding="utf-8-sig", index=False, sep="\t")
+train.to_csv("./data/train.tsv", encoding="utf-8-sig", index=False, sep="\t")
+val.to_csv("./data/val.tsv", encoding="utf-8-sig", index=False, sep="\t")
+test.to_csv("./data/test.tsv", encoding="utf-8-sig", index=False, sep="\t")
 # %%
