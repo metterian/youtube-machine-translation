@@ -5,8 +5,7 @@ import re
 import time
 from typing import List, Optional
 
-import requests
-from bs4 import BeautifulSoup
+import parmap
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from tqdm import tqdm
@@ -15,11 +14,57 @@ from webdriver_manager.chrome import ChromeDriverManager
 # %%
 # set domain as hash tag
 keywords = [
-    "메이크업",
-    "데일리 메이크업",
-    "먹방",
-    "뷰티",
-    "정치",
+    "프랑스 요리",
+    "영국 요리",
+    "영국",
+    "백종원",
+    "수요미식회",
+    "자취 요리",
+    "레시피",
+    "자격증",
+    "운전",
+    "셀피",
+    "운동하는",
+    "좀비",
+    "분장",
+    "데일리",
+    "쇼핑",
+    "쇼핑 하울",
+    "하울",
+    "100만원",
+    "구매기",
+    "구매 후기",
+    "소개팅",
+    "10대 소개팅",
+    "취중진담",
+    "술게임",
+    "해장",
+    "자전거",
+    "카페",
+    "카페 vlog",
+    "카페 소개팅",
+    "몰래카메라",
+    "몰카",
+    "카메라",
+    "취미",
+    "호캉스",
+    "호텔",
+    "부산",
+    "영정도",
+    "길거리",
+    "운동",
+    "운동복",
+    "운동하는 직장인",
+    "직장인",
+    "대학생",
+    "아프라카 BJ"
+    "bj",
+    "빅뱅",
+    "bts",
+    "big bang",
+    "black pink",
+    "kpop star",
+    "k drama"
 ]
 
 #%%
@@ -85,56 +130,31 @@ class Crawler:
         keyword = keyword.replace(" ", "_")
 
         self.html = self.driver.page_source
-        with open(f"./html/{keyword}.html", "w+", encoding="utf-8") as fp:
+        with open(f"./html3/{keyword}.html", "w+", encoding="utf-8") as fp:
             fp.write(self.html)
 
-    def download(self, keywords: List[str]) -> None:
+    def download(self, keyword: str) -> None:
         """main function to download html page source using keywords list
 
         Args:
-            keywords (List[str]): keywords list
+            keywords (str): keywords list
         """
-        for keyword in tqdm(keywords):
-            if not glob.glob(f"./html/{keyword}.html"):
-                self.search(keyword)
-                self.scroll_down_to_bottom()
-                self.download_and_save_html(keyword)
 
-    def get_video_info(self, url) -> dict:
-        """Get video's information"""
-        self.driver.get(url)
-        page_source = self.driver.page_source
-        self.driver.quit()
+        if not glob.glob(f"./html3/{keyword}.html"):
+            self.search(keyword)
+            self.scroll_down_to_bottom()
+            self.download_and_save_html(keyword)
 
-        self.soup = BeautifulSoup(page_source, "lxml", from_encoding="utf-8")
-        self.script = self.soup.find(
-            "script", {"class": "style-scope ytd-player-microformat-renderer"}
-        )
-        self.video_info = json.loads(self.script.text)
+def run(keyword: str):
+    bot = Crawler(headless=True)
+    bot.download(keyword=keyword)
 
-        title = self.video_info["name"]
-        description = self.video_info["description"]
-        date = self.video_info["uploadDate"]
-        genre = self.video_info["genre"]
-        view_count = self.video_info["interactionCount"]
-        uploader = self.video_info["author"]
-
-        info = {
-            "title": title,
-            "description": description,
-            "date": date,
-            "genre": genre,
-            "view_count": view_count,
-            "uploader": uploader,
-        }
-        return info
+def main():
+    parmap.map(run, keywords, pm_pbar=True, pm_processes=64)
 
 
 if __name__ == "__main__":
-    bot = Crawler()
-    # bot.download(keywords)
-    info = bot.get_video_info("https://www.youtube.com/watch?v=5ktWGfmyG4U")
-    # bot.quit()
+    main()
 
 # %%
 
